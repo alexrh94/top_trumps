@@ -44,7 +44,7 @@ test('resolveClientFile serves files, directory indexes, and the spa fallback', 
     assert.equal(script.filePath, join(root, 'app.js'))
   }
 
-  const fallback = resolveClientFile(root, '/room/A1B2C')
+  const fallback = resolveClientFile(root, '/room/ABCD')
   assert.equal(fallback.ok, true)
   if (fallback.ok) {
     assert.equal(fallback.filePath, join(root, 'index.html'))

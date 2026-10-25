@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { loadDeck, validateDeck } from './deck.js'
+import { listDecks, loadDeck, validateDeck } from './deck.js'
 
 const sampleDeckPath = fileURLToPath(new URL('../../decks/dinosaurs.json', import.meta.url))
 
@@ -48,6 +48,37 @@ test('loadDeck reads the sample dinosaur deck', () => {
   assert.equal(deck.name, 'Dinosaurs')
   assert.equal(deck.attributes.length, 5)
   assert.ok(deck.cards.length >= 2)
+})
+
+test('listDecks reads names from a directory and skips other files', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'top-trumps-decks-'))
+  const deck = {
+    attributes: ['Speed'],
+    cards: [
+      { name: 'One', values: [1] },
+      { name: 'Two', values: [2] },
+    ],
+  }
+  writeFileSync(join(directory, 'notes.txt'), 'ignore me')
+  mkdirSync(join(directory, 'nested.json'))
+  writeFileSync(join(directory, 'zeta.json'), JSON.stringify({ ...deck, name: 'Zeta' }))
+  writeFileSync(join(directory, 'alpha.json'), JSON.stringify({ ...deck, name: 'Alpha' }))
+
+  assert.deepEqual(listDecks(directory), [
+    { id: 'alpha', name: 'Alpha' },
+    { id: 'zeta', name: 'Zeta' },
+  ])
+})
+
+test('listDecks includes the sample dinosaur deck', () => {
+  const decks = listDecks(dirname(sampleDeckPath))
+  assert.ok(decks.some((deck) => deck.id === 'dinosaurs' && deck.name === 'Dinosaurs'))
+})
+
+test('listDecks throws when a json file is not a valid deck', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'top-trumps-decks-'))
+  writeFileSync(join(directory, 'broken.json'), '{"name":"Broken"}')
+  assert.throws(() => listDecks(directory), /Invalid deck/)
 })
 
 test('loadDeck throws when the file is not a valid deck', () => {

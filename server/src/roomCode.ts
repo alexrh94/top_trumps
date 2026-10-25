@@ -1,14 +1,25 @@
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const DIGITS = '0123456789'
-const ROOM_CODE_PATTERN = /^[A-Z][0-9][A-Z][0-9][A-Z]$/
+const ROOM_CODE_PATTERN = /^[A-Z]{4}$/
+const ALLOCATION_ATTEMPTS = 50
 
 export function generateRoomCode(random: () => number = Math.random): string {
-  const pick = (alphabet: string) => {
-    const index = Math.floor(random() * alphabet.length)
-    return alphabet[index] ?? alphabet[0]
+  let code = ''
+  for (let index = 0; index < 4; index += 1) {
+    const letterIndex = Math.floor(random() * LETTERS.length)
+    code += LETTERS[letterIndex] ?? LETTERS[0]
   }
+  return code
+}
 
-  return `${pick(LETTERS)}${pick(DIGITS)}${pick(LETTERS)}${pick(DIGITS)}${pick(LETTERS)}`
+export function generateUniqueRoomCode(
+  isTaken: (code: string) => boolean,
+  random: () => number = Math.random,
+): string | null {
+  for (let attempt = 0; attempt < ALLOCATION_ATTEMPTS; attempt += 1) {
+    const code = generateRoomCode(random)
+    if (!isTaken(code)) return code
+  }
+  return null
 }
 
 export function isValidRoomCode(code: string): boolean {

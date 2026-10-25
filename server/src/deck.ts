@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 
 export interface DeckCard {
   name: string
@@ -9,6 +10,11 @@ export interface Deck {
   name: string
   attributes: string[]
   cards: DeckCard[]
+}
+
+export interface DeckSummary {
+  id: string
+  name: string
 }
 
 export type DeckValidation =
@@ -107,4 +113,21 @@ export function loadDeck(filePath: string): Deck {
     throw new Error(`Invalid deck at ${filePath}: ${result.errors.join('; ')}`)
   }
   return result.deck
+}
+
+export function listDecks(decksDir: string): DeckSummary[] {
+  const summaries: DeckSummary[] = []
+
+  for (const entry of readdirSync(decksDir)) {
+    if (!entry.toLowerCase().endsWith('.json')) continue
+
+    const filePath = join(decksDir, entry)
+    if (!statSync(filePath).isFile()) continue
+
+    const deck = loadDeck(filePath)
+    summaries.push({ id: entry.slice(0, -'.json'.length), name: deck.name })
+  }
+
+  summaries.sort((left, right) => left.name.localeCompare(right.name))
+  return summaries
 }
