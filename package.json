@@ -13,7 +13,7 @@
     "build:client": "tsc -p client --noEmit && vite build --config client/vite.config.ts",
     "start": "tsx server/src/index.ts",
     "typecheck": "tsc -p client --noEmit && tsc -p server --noEmit",
-    "test": "tsx --test server/src/roomCode.test.ts server/src/deck.test.ts server/src/rooms.test.ts server/src/static.test.ts server/src/server.test.ts"
+    "test": "tsx --test server/src/roomCode.test.ts server/src/deck.test.ts server/src/rooms.test.ts server/src/game.test.ts server/src/static.test.ts server/src/server.test.ts"
   },
   "dependencies": {
     "react": "^19.2.0",

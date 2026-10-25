@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import http from 'node:http'
+import { join } from 'node:path'
 import { WebSocket, WebSocketServer, type RawData } from 'ws'
-import { listDecks, type DeckSummary } from './deck.js'
+import { listDecks, loadDeck, type Deck, type DeckSummary } from './deck.js'
+import { createGame, playAttribute, removePlayer, viewFor, type GameState } from './game.js'
 import { generateUniqueRoomCode } from './roomCode.js'
 import { createRoomStore, type PublicRoom, type RoomChange } from './rooms.js'
 import { contentTypeFor, resolveClientFile } from './static.js'
@@ -35,6 +37,8 @@ type ClientMessage =
   | { type: 'create_room'; nickname: string }
   | { type: 'join_room'; code: string; nickname: string }
   | { type: 'select_deck'; deckId: string }
+  | { type: 'start_game' }
+  | { type: 'choose_attribute'; attributeIndex: number }
   | { type: 'leave_room' }
 
 export function cleanNickname(value: string): string {
@@ -61,6 +65,10 @@ function parseClientMessage(value: unknown): ClientMessage | null {
   if (value.type === 'select_deck' && typeof value.deckId === 'string') {
     return { type: 'select_deck', deckId: value.deckId }
   }
+  if (value.type === 'start_game') return { type: 'start_game' }
+  if (value.type === 'choose_attribute' && typeof value.attributeIndex === 'number') {
+    return { type: 'choose_attribute', attributeIndex: value.attributeIndex }
+  }
   return null
 }
 
@@ -70,8 +78,14 @@ function rawDataToString(data: RawData): string {
   return data.toString('utf8')
 }
 
-export function createGameServer(clientDir: string, decksDir: string, emptyRoomMs = EMPTY_ROOM_MS): GameServer {
+export function createGameServer(
+  clientDir: string,
+  decksDir: string,
+  emptyRoomMs = EMPTY_ROOM_MS,
+  random: () => number = Math.random,
+): GameServer {
   const rooms = createRoomStore()
+  const games = new Map<string, GameState>()
   const sockets = new Map<string, WebSocket>()
   const nicknames = new Map<string, string>()
   const expirations = new Map<string, NodeJS.Timeout>()
@@ -128,6 +142,13 @@ export function createGameServer(clientDir: string, decksDir: string, emptyRoomM
       const socket = sockets.get(playerId)
       if (socket) send(socket, message)
     }
+
+    const game = games.get(room.code)
+    if (!game) return
+    for (const playerId of room.playerIds) {
+      const socket = sockets.get(playerId)
+      if (socket) send(socket, { type: 'game', ...viewFor(game, playerId) })
+    }
   }
 
   function cancelExpiry(code: string): void {
@@ -150,11 +171,40 @@ export function createGameServer(clientDir: string, decksDir: string, emptyRoomM
   function publishChange(change: RoomChange | null): void {
     if (!change?.room) return
     if (change.room.playerIds.length === 0) {
+      games.delete(change.code)
       scheduleExpiry(change.code)
       return
     }
+    const game = games.get(change.code)
+    if (game) {
+      for (const playerId of [...game.order]) {
+        if (!change.room.playerIds.includes(playerId)) removePlayer(game, playerId)
+      }
+    }
     cancelExpiry(change.code)
     publish(change.room)
+  }
+
+  function readDeck(deckId: string): { ok: true; deck: Deck } | { ok: false; error: string } {
+    if (!/^[A-Za-z0-9_-]+$/.test(deckId)) {
+      return { ok: false, error: 'That deck is not available.' }
+    }
+
+    let summaries: DeckSummary[]
+    try {
+      summaries = listDecks(decksDir)
+    } catch {
+      return { ok: false, error: 'The deck list could not be read.' }
+    }
+    if (!summaries.some((deck) => deck.id === deckId)) {
+      return { ok: false, error: 'That deck is not available.' }
+    }
+
+    try {
+      return { ok: true, deck: loadDeck(join(decksDir, `${deckId}.json`)) }
+    } catch {
+      return { ok: false, error: 'That deck is not available.' }
+    }
   }
 
   function sendDeckList(socket: WebSocket): void {
@@ -220,6 +270,11 @@ export function createGameServer(clientDir: string, decksDir: string, emptyRoomM
       }
 
       if (message.type === 'select_deck') {
+        const currentCode = rooms.codeFor(playerId)
+        if (currentCode && games.has(currentCode)) {
+          send(socket, { type: 'error', message: 'The game has already started.' })
+          return
+        }
         let knownDeckIds: Set<string>
         try {
           knownDeckIds = new Set(listDecks(decksDir).map((deck) => deck.id))
@@ -233,6 +288,61 @@ export function createGameServer(clientDir: string, decksDir: string, emptyRoomM
           return
         }
         publish(result.room)
+        return
+      }
+
+      if (message.type === 'start_game') {
+        const code = rooms.codeFor(playerId)
+        const room = code ? rooms.get(code) : undefined
+        if (!room || !code) {
+          send(socket, { type: 'error', message: 'Join a room before starting a game.' })
+          return
+        }
+        if (room.hostId !== playerId) {
+          send(socket, { type: 'error', message: 'Only the host can start the game.' })
+          return
+        }
+        if (games.has(code)) {
+          send(socket, { type: 'error', message: 'The game has already started.' })
+          return
+        }
+        if (room.playerIds.length < 2) {
+          send(socket, { type: 'error', message: 'At least two players are needed to start.' })
+          return
+        }
+        if (!room.deckId) {
+          send(socket, { type: 'error', message: 'Choose a deck before starting.' })
+          return
+        }
+        const loaded = readDeck(room.deckId)
+        if (!loaded.ok) {
+          send(socket, { type: 'error', message: loaded.error })
+          return
+        }
+        const created = createGame(room.playerIds, loaded.deck, random)
+        if (!created.ok) {
+          send(socket, { type: 'error', message: created.error })
+          return
+        }
+        games.set(code, created.game)
+        publish(room)
+        return
+      }
+
+      if (message.type === 'choose_attribute') {
+        const code = rooms.codeFor(playerId)
+        const game = code ? games.get(code) : undefined
+        if (!game || !code) {
+          send(socket, { type: 'error', message: 'The game has not started.' })
+          return
+        }
+        const result = playAttribute(game, playerId, message.attributeIndex)
+        if (!result.ok) {
+          send(socket, { type: 'error', message: result.error })
+          return
+        }
+        const room = rooms.get(code)
+        if (room) publish(room)
         return
       }
 

@@ -112,6 +112,18 @@ test('leave removes a player and hands the room to the next one', () => {
   assert.equal(store.drop('ABCD'), false)
 })
 
+test('codeFor reports the room a player is in', () => {
+  const store = createRoomStore()
+  assert.equal(store.codeFor('host'), undefined)
+  assert.equal(store.create('host', 'ABCD').ok, true)
+  assert.equal(store.codeFor('host'), 'ABCD')
+  assert.equal(store.join('guest', 'ABCD').ok, true)
+  assert.equal(store.codeFor('guest'), 'ABCD')
+  store.leave('host')
+  assert.equal(store.codeFor('host'), undefined)
+  assert.equal(store.codeFor('guest'), 'ABCD')
+})
+
 test('join keeps the deck when the room is waiting for someone to return', () => {
   const store = createRoomStore()
   assert.equal(store.create('host', 'ABCD').ok, true)

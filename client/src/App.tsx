@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { GameView } from './GameView'
 import {
   readNickname,
   useGameServer,
@@ -12,21 +13,34 @@ const ROOM_CODE = /^[A-Z]{4}$/
 
 export function App() {
   const game = useGameServer()
+  const playing = Boolean(game.room && game.playerId && game.table)
 
   return (
-    <main className="lobby">
-      <div className="cards" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-      {game.room && game.playerId ? (
+    <main className={playing ? 'table' : 'lobby'}>
+      {!playing && (
+        <div className="cards" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+      {game.room && game.playerId && game.table ? (
+        <GameView
+          room={game.room}
+          playerId={game.playerId}
+          table={game.table}
+          notice={game.notice}
+          onChoose={game.chooseAttribute}
+          onLeave={game.leaveRoom}
+        />
+      ) : game.room && game.playerId ? (
         <RoomView
           room={game.room}
           playerId={game.playerId}
           decks={game.decks}
           notice={game.notice}
           onSelectDeck={game.selectDeck}
+          onStart={game.startGame}
           onLeave={game.leaveRoom}
         />
       ) : (
@@ -133,6 +147,7 @@ function RoomView({
   decks,
   notice,
   onSelectDeck,
+  onStart,
   onLeave,
 }: {
   room: RoomState
@@ -140,14 +155,20 @@ function RoomView({
   decks: DeckChoice[]
   notice: string
   onSelectDeck: (deckId: string) => void
+  onStart: () => void
   onLeave: () => void
 }) {
   const isHost = room.hostId === playerId
-  const hint = room.deckId
-    ? ''
-    : isHost
+  const canStart = isHost && room.players.length >= 2 && room.deckId !== null
+  const hint = !room.deckId
+    ? isHost
       ? 'Choose a deck for this room.'
       : 'Waiting for the host to choose a deck.'
+    : room.players.length < 2
+      ? 'Waiting for at least one more player.'
+      : isHost
+        ? 'Everyone is here. Start the game when you are ready.'
+        : 'Waiting for the host to start the game.'
   const message = notice || hint
 
   return (
@@ -187,6 +208,9 @@ function RoomView({
             <li key={player.id}>{playerLabel(player, index, playerId, room.hostId)}</li>
           ))}
         </ul>
+        <button type="button" className="start" onClick={onStart} disabled={!canStart}>
+          Start game
+        </button>
         <button type="button" className="secondary" onClick={onLeave}>
           Leave room
         </button>

@@ -24,6 +24,7 @@ export interface RoomStore {
   drop(code: string): boolean
   get(code: string): PublicRoom | undefined
   has(code: string): boolean
+  codeFor(playerId: string): string | undefined
 }
 
 interface InternalRoom {
@@ -145,6 +146,10 @@ export function createRoomStore(): RoomStore {
       if (!room || room.playerIds.length > 0) return false
       rooms.delete(code)
       return true
+    },
+
+    codeFor(playerId) {
+      return membership.get(playerId)
     },
   }
 }
