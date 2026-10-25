@@ -1,0 +1,14 @@
+{
+  "name": "Dinosaurs",
+  "attributes": ["Height", "Weight", "Length", "Speed", "Bite"],
+  "cards": [
+    { "name": "Tyrannosaurus", "values": [4, 8, 12, 20, 10] },
+    { "name": "Triceratops", "values": [3, 6, 9, 25, 6] },
+    { "name": "Velociraptor", "values": [1, 1, 2, 40, 7] },
+    { "name": "Brachiosaurus", "values": [12, 10, 22, 15, 2] },
+    { "name": "Stegosaurus", "values": [4, 5, 9, 15, 4] },
+    { "name": "Spinosaurus", "values": [5, 7, 14, 18, 9] },
+    { "name": "Ankylosaurus", "values": [2, 6, 8, 10, 5] },
+    { "name": "Diplodocus", "values": [6, 9, 27, 12, 1] }
+  ]
+}

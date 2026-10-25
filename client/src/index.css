@@ -1,0 +1,140 @@
+:root {
+  color: #1c1915;
+  background: #143028;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.lobby {
+  width: min(40rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4.5rem 0 3rem;
+}
+
+.cards {
+  display: flex;
+  height: 4.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cards span {
+  width: 3rem;
+  height: 4.25rem;
+  margin-right: -1.4rem;
+  border: 2px solid #1c1915;
+  border-radius: 0.4rem;
+  background: #f4efe4;
+  box-shadow: 0 8px 0 rgb(0 0 0 / 15%);
+}
+
+.cards span:nth-child(2) {
+  transform: translateY(-0.35rem) rotate(-6deg);
+  background: #e2b15a;
+}
+
+.cards span:nth-child(3) {
+  transform: translateY(0.15rem) rotate(7deg);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #e2b15a;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0.35rem 0 0.75rem;
+  color: #f4efe4;
+  font-size: clamp(3rem, 8vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.lede,
+.status {
+  margin: 0;
+  color: #d5e2d8;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.lede {
+  max-width: 36rem;
+  font-size: 1.05rem;
+}
+
+.join {
+  margin-top: 2rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: #f4efe4;
+}
+
+.join label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.join-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.join input {
+  width: 8rem;
+  padding: 0.7rem 0.8rem;
+  border: 2px solid #1c1915;
+  border-radius: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.join button {
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: #143028;
+  color: #f4efe4;
+  font-family: "Segoe UI", sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.join button:hover {
+  background: #1d4638;
+}
+
+.status {
+  margin-top: 0.85rem;
+  color: #3d4a40;
+}
+
+@media (max-width: 540px) {
+  .join-row {
+    flex-direction: column;
+  }
+
+  .join input {
+    width: 100%;
+  }
+}
