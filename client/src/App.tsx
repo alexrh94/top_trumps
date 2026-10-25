@@ -85,7 +85,7 @@ function LobbyView({
           value={nickname}
           autoComplete="nickname"
           maxLength={24}
-          placeholder="Alex"
+          placeholder="Enter your nickname"
           onChange={(event) => setNickname(event.target.value)}
         />
         <label htmlFor="room-code">Room code</label>

@@ -4,20 +4,47 @@ Players join a room with a four-letter code such as `ABCD`. The host picks the d
 
 ## Architecture
 
-The repo is one npm package at the root (`"type": "module"`). It needs Node.js 20.19 or newer, or Node.js 22.12 or newer. The client is built locally with Vite and the Node.js server serves that build.
+The repo is one npm package at the root (`"type": "module"`). It needs Node.js 20.19 or newer, or Node.js 22.12 or newer. The client is built locally with Vite and the Node.js server serves that build. The client and server have separate TypeScript configs, so do not import server modules into the client.
 
-- `client/` is the React and TypeScript UI. Vite's root is this directory (`client/vite.config.ts`), and `npm run build` writes the production files to `dist/client`. The dev server listens on port 5173 and proxies `/ws` to `http://localhost:3000`. The lobby asks for a nickname and checks that a room code is four letters. Creating or joining a room sends that nickname, and the host then picks a deck from the list the server reads out of `decks/`.
-- `server/` is the Node.js HTTP and WebSocket server, using the `ws` package. `server/src/index.ts` serves `dist/client` and listens on `PORT`, which defaults to 3000.
-  - `server.ts` creates the HTTP server and a WebSocket server on `/ws`. A new socket receives `{ "type": "connected", "playerId": "..." }` and the deck list. The socket can create a room, join a room, or leave one. Creating or joining sets that player's nickname, and the host can choose that room's deck.
+- `client/` is the React and TypeScript UI. Vite's root is this directory (`client/vite.config.ts`), and `npm run build` writes the production files to `dist/client`. The dev server listens on port 5173 and proxies `/ws` to `http://localhost:3000`. `App.tsx` is the lobby and the room screen. `useGameServer.ts` owns the WebSocket.
+- `server/` is the Node.js HTTP and WebSocket server, using the `ws` package. `server/src/index.ts` serves `dist/client`, reads `decks/`, and listens on `PORT`, which defaults to 3000.
+  - `server.ts` creates the HTTP server and a WebSocket server on `/ws`. It turns socket messages into room changes and is the only place that knows which socket belongs to which player.
   - `static.ts` resolves client files inside the build directory, blocks paths that escape it, and falls back to `index.html` for application routes such as `/room/ABCD`.
-  - `deck.ts` validates a deck object, loads one from disk, and lists the decks in a directory. A deck needs a name, at least one unique attribute, and at least two cards whose numeric values line up with those attributes.
-  - `roomCode.ts` generates and checks room codes made of four uppercase letters.
-  - `rooms.ts` keeps the rooms: creating one, joining it, choosing a deck, and removing a player who leaves. If the host leaves, the next player becomes host. An empty room stays open briefly so a refresh can rejoin, then it is deleted.
-- `decks/` holds the JSON decks the server validates. `decks/dinosaurs.json` is the sample deck.
+  - `deck.ts` validates a deck object, loads one from disk, and lists the decks in a directory. A deck needs a name, at least one unique attribute, and at least two cards whose numeric values line up with those attributes. `listDecks` uses each `*.json` file name without the extension as the id (`dinosaurs.json` becomes `dinosaurs`) and the deck's own name as the label. A non-JSON file is ignored. An invalid JSON deck makes the whole list throw.
+  - `roomCode.ts` generates and checks room codes made of four uppercase letters. The server generates the code when a room is created and skips codes that are already taken, including rooms waiting out their empty-room grace period.
+  - `rooms.ts` keeps membership only: who is in a room, who the host is, and which deck id is selected. Nicknames live on the socket in `server.ts`, not in the room store.
+- `decks/` holds the JSON decks the server validates. `decks/dinosaurs.json` is the sample deck. Deck files are not served as static HTTP files. The client only hears about them over the socket.
 
 Dealing cards, taking turns, and awarding the tie pile are still to be built on this server. Keep that game logic on the server, and keep the client as the UI that talks to it over WebSockets.
 
-Unit tests cover server logic only. They live beside the server modules as `server/src/*.test.ts` and run with `node:test` through `tsx`. Test every server function with at least one test.
+## Rooms
+
+The lobby has a nickname box above the room code. Both are optional to start a game: an empty nickname is allowed, and Join is what checks the code. Creating a room or joining one sends the current nickname. The client stores it in `sessionStorage` under `top-trumps-nickname`, so leaving or refreshing can send the same name again. The server trims it, collapses whitespace, strips control characters, and keeps at most 24 characters. Duplicate nicknames are allowed. On the room screen a blank name is shown as "You" or "Player N"; a set name is shown as typed, with "(you)" on your own row and ", host" on the host.
+
+The player who creates the room is the host. Only the host can choose a deck, and the choice has to be an id from the current deck list. The chosen deck starts unset. A player is in at most one room: creating or joining another room removes them from the previous one and tells whoever is left.
+
+If the host leaves, the next player in join order becomes host and the chosen deck stays. When the last player leaves, the room stays open for 15 seconds so a refresh of `/room/ABCD` can rejoin the same code, keep the deck, and become host. After that the room is deleted. Joining a code that does not exist stays on the lobby with an error.
+
+The browser address is `/room/` plus the code. The socket client joins that code on connect, using the stored nickname. Both Vite and the static server serve `index.html` for that path.
+
+## WebSocket messages
+
+A new socket receives `{ "type": "connected", "playerId": "..." }` and then `{ "type": "decks", "decks": [{ "id": "dinosaurs", "name": "Dinosaurs" }] }`.
+
+Client messages:
+
+| Message | Meaning |
+| --- | --- |
+| `{ "type": "create_room", "nickname": "Alex" }` | Open a room. The server picks the code. |
+| `{ "type": "join_room", "code": "ABCD", "nickname": "Sam" }` | Join a room. The code is trimmed and uppercased. |
+| `{ "type": "select_deck", "deckId": "dinosaurs" }` | Host chooses the deck. |
+| `{ "type": "leave_room" }` | Leave the current room. |
+
+A room update is `{ "type": "room", "code": "ABCD", "deckId": null, "hostId": "...", "playerIds": ["..."], "players": [{ "id": "...", "nickname": "Alex" }] }`. `deckId` is `null` until the host chooses. `playerIds` is join order and matches `players`. Failures are `{ "type": "error", "message": "..." }`, including an unknown code, a guest choosing the deck, or an unknown deck id. A failed join does not change the nickname already stored for that socket.
+
+## Tests
+
+Unit tests cover server logic only. They live beside the server modules as `server/src/*.test.ts` and run with `node:test` through `tsx`. Test every server function with at least one test. `npm test` lists those files explicitly, so a new test file has to be added to the `test` script in `package.json`.
 
 ## Commands
 
