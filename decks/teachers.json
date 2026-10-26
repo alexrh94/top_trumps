@@ -1,0 +1,35 @@
+{
+    "name": "Teachers",
+    "attributes": ["Build", "Anger", "Class Control", "Longevity", "Quality"],
+    "cards": [
+      { "name": "Kim Dellar", "values": [6, 12, 35, 8, 10] },
+      { "name": "Ms Reed", "values": [7, 56, 33, 5, 4] },
+      { "name": "Mr Paling", "values": [10, 50, 38, 9, 5] },
+      { "name": "Ms Hubbard", "values": [2, 75, 16, 5, 2] },
+      { "name": "Ms Court", "values": [1, 60, 0, 2, 1] },
+      { "name": "Mr Slack", "values": [10, 74, 37, 8, 8] },
+      { "name": "Mr Wright", "values": [7, 96, 31, 8, 6] },
+      { "name": "Mr Scott", "values": [6, 22, 31, 8, 5 ] },
+      { "name": "Mr Holmes", "values": [5, 28, 36, 6, 9 ] },
+      { "name": "Mr West", "values": [5, 64, 29, 8, 7 ] },
+      { "name": "Ms Gilchrist", "values": [4, 77, 5, 6, 3 ] },
+      { "name": "Mr Lowery", "values": [8, 31, 36, 5, 8 ] },
+      { "name": "Mr Wardle", "values": [4, 60, 30, 8, 7 ] },
+      { "name": "Mr Sturrock", "values": [6, 40, 35, 4, 8 ] },
+      { "name": "Ms Watkins", "values": [4, 67, 15, 6, 2 ] },
+      { "name": "Mr Dewhurst", "values": [3, 30, 30, 7, 6 ] },
+      { "name": "Ms Gigg", "values": [2, 40, 34, 5, 7 ] },
+      { "name": "Mr Petch", "values": [6, 25, 32, 4, 7 ] },
+      { "name": "Mr Hodson", "values": [8, 35, 36, 8, 8 ] },
+      { "name": "Mr Wildsmith", "values": [4, 83, 37, 7, 7 ] },
+      { "name": "Mr Telford", "values": [8, 10, 20, 4, 3 ] },
+      { "name": "Ms Milford", "values": [7, 64, 27, 4, 4 ] },
+      { "name": "Ms Darrington", "values": [5, 38, 33, 6, 5 ] },
+      { "name": "Mr Tomlinson", "values": [8, 89, 39, 7, 5 ] },
+      { "name": "Mr Crone", "values": [8, 67, 39, 7, 8 ] },
+      { "name": "Mr Lathall", "values": [9, 50, 36, 7, 8 ] },
+      { "name": "Mr Weaver", "values": [6, 40, 40, 3, 10 ] },
+      { "name": "Mr Mehat", "values": [7, 30, 30, 2, 8 ] }
+    ]
+  }
+  
