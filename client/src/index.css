@@ -431,6 +431,7 @@ h1.room-code {
 
 .table-leave:focus-visible,
 .confirm:focus-visible,
+.next-turn:focus-visible,
 .play-again:focus-visible,
 .change-deck:focus-visible,
 .rematch select:focus-visible,
@@ -546,14 +547,67 @@ h1.room-code {
 
 .hand {
   display: flex;
-  flex: 1 1 auto;
-  align-items: flex-start;
+  flex: 0 0 auto;
+  align-items: flex-end;
   justify-content: center;
   width: 100%;
-  min-height: 0;
 }
 
-.hand.is-turn .playing-card {
+.hand-frame {
+  position: relative;
+  width: min(22rem, 100%);
+}
+
+.hand-sizer {
+  visibility: hidden;
+}
+
+.hand .playing-card h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hand-count-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 2px solid #1c1915;
+  border-radius: 0.8rem;
+  background: #f4efe4;
+  color: #1c1915;
+  box-shadow: 0 8px 0 rgb(0 0 0 / 16%);
+}
+
+.hand-count-face h2 {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: #1c1915;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hand-count-face .stack {
+  margin-top: 0;
+}
+
+.hand-count-face .count {
+  margin: 0;
+  color: #3d4a40;
+}
+
+.hand.is-turn .playing-card,
+.hand.is-turn .hand-count-face {
   box-shadow:
     0 0 0 3px #e2b15a,
     0 8px 0 rgb(0 0 0 / 16%);
@@ -568,7 +622,127 @@ h1.room-code {
 }
 
 .empty-hand {
-  margin-top: 1.5rem;
+  margin: 0 0 0.4rem;
+}
+
+.felt {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0.75rem 0.6rem;
+  overflow: auto;
+  border-radius: 1rem;
+  background: rgb(8 24 18 / 35%);
+  box-shadow: inset 0 0 0 2px rgb(244 239 228 / 12%);
+}
+
+.table-result {
+  flex: 0 0 auto;
+  width: min(40rem, 100%);
+  text-align: center;
+}
+
+.table-result-title {
+  margin: 0;
+  color: #f4efe4;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.table-result .verdict,
+.table-result .scoreline {
+  margin-top: 0.2rem;
+}
+
+.played {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 0.2rem 0.15rem;
+}
+
+.playing-card.table-card {
+  width: min(16rem, 100%);
+  flex: 1 1 13rem;
+  max-width: 16rem;
+  padding: 0.4rem 0.7rem 0.45rem;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.playing-card.table-card h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.12rem;
+  line-height: 1.15;
+}
+
+.playing-card.table-card .hand-count {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.playing-card.table-card .attr {
+  margin-top: 0.05rem;
+  padding: 0.08rem 0.4rem;
+  line-height: 1.2;
+  font-size: 0.82rem;
+}
+
+.table-card.is-winner {
+  border-color: #9a7430;
+  animation: winner-bounce 0.9s ease-in-out infinite;
+  box-shadow:
+    0 0 0 3px #e2b15a,
+    0 8px 0 rgb(0 0 0 / 16%);
+}
+
+@keyframes winner-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-0.6rem);
+  }
+}
+
+.felt-wait {
+  margin: 0;
+  color: #d5e2d8;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.next-turn {
+  flex: 0 0 auto;
+  padding: 0.7rem 1.3rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: #e2b15a;
+  color: #1c1915;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.next-turn:hover:not(:disabled) {
+  background: #efc56f;
+}
+
+.next-turn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .playing-card {
@@ -636,6 +810,9 @@ h1.room-code {
   padding: 0.7rem 1rem;
   background: #143028;
   color: #f4efe4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .confirm:hover:not(:disabled) {
@@ -689,6 +866,20 @@ h1.room-code {
 
   .pile {
     flex-basis: 5.25rem;
+  }
+
+  .played {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+
+  .playing-card.table-card {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 0.4rem;
   }
 }
 
@@ -793,7 +984,8 @@ h1.room-code {
     box-shadow: 0 4px 0 rgb(0 0 0 / 16%);
   }
 
-  .hand.is-turn .playing-card {
+  .hand.is-turn .playing-card,
+  .hand.is-turn .hand-count-face {
     box-shadow:
       0 0 0 2px #e2b15a,
       0 4px 0 rgb(0 0 0 / 16%);
@@ -818,6 +1010,20 @@ h1.room-code {
     padding: 0.32rem 0.65rem;
   }
 
+  .next-turn {
+    padding: 0.35rem 0.8rem;
+  }
+
+  .felt {
+    gap: 0.4rem;
+    padding: 0.35rem 0.4rem;
+  }
+
+  .played {
+    gap: 0.45rem;
+    padding: 0.7rem 0.2rem 0.1rem;
+  }
+
   .play-actions {
     margin-top: 0.25rem;
   }
@@ -825,5 +1031,11 @@ h1.room-code {
   .play-again,
   .change-deck {
     padding: 0.28rem 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-card.is-winner {
+    animation: none;
   }
 }

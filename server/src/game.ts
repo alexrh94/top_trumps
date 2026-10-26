@@ -11,7 +11,7 @@ export interface GameState {
   hands: Map<string, Card[]>
   turn: number
   tiePile: Card[]
-  phase: 'playing' | 'finished'
+  phase: 'playing' | 'reveal' | 'finished'
   winnerId: string | null
   lastResult: TurnResult | null
 }
@@ -38,7 +38,7 @@ export interface ResultView {
 }
 
 export interface GameView {
-  phase: 'playing' | 'finished'
+  phase: 'playing' | 'reveal' | 'finished'
   attributes: string[]
   currentPlayerId: string | null
   tiePileCount: number
@@ -156,6 +156,9 @@ function shuffleCards(cards: readonly Card[], random: () => number): Card[] {
 }
 
 export function playAttribute(game: GameState, playerId: string, attributeIndex: number): ActionResult {
+  if (game.phase === 'reveal') {
+    return { ok: false, error: 'The cards are still on the table.' }
+  }
   if (game.phase !== 'playing') {
     return { ok: false, error: 'The game is already over.' }
   }
@@ -191,19 +194,41 @@ export function playAttribute(game: GameState, playerId: string, attributeIndex:
   const winners = plays.filter((play) => (play.card.values[attributeIndex] ?? Number.NEGATIVE_INFINITY) === best)
   const winner = winners.length === 1 ? winners[0] : undefined
 
-  if (winner) {
-    const awardedPile = game.tiePile.length
-    const won = [...plays.map((play) => play.card), ...game.tiePile]
+  game.lastResult = {
+    attributeIndex,
+    plays,
+    winnerId: winner ? winner.playerId : null,
+    awardedPile: winner ? game.tiePile.length : 0,
+  }
+  game.phase = 'reveal'
+  return { ok: true }
+}
+
+function awardTrick(game: GameState): void {
+  const result = game.lastResult
+  if (!result) return
+
+  const cards = result.plays.map((play) => play.card)
+  const winnerHand = result.winnerId ? game.hands.get(result.winnerId) : undefined
+  if (winnerHand) {
+    winnerHand.push(...cards, ...game.tiePile)
     game.tiePile = []
-    game.hands.get(winner.playerId)?.push(...won)
-    game.lastResult = { attributeIndex, plays, winnerId: winner.playerId, awardedPile }
-  } else {
-    game.tiePile.push(...plays.map((play) => play.card))
-    game.lastResult = { attributeIndex, plays, winnerId: null, awardedPile: 0 }
+    return
   }
 
+  game.tiePile.push(...cards)
+}
+
+export function nextTurn(game: GameState): ActionResult {
+  if (game.phase !== 'reveal') {
+    return { ok: false, error: 'There is no turn to continue.' }
+  }
+
+  awardTrick(game)
   if (!finishIfDecided(game)) {
     moveTurnTo(game, game.turn + 1)
+    game.phase = 'playing'
+    game.lastResult = null
   }
 
   return { ok: true }
@@ -212,6 +237,15 @@ export function playAttribute(game: GameState, playerId: string, attributeIndex:
 export function removePlayer(game: GameState, playerId: string): void {
   const index = game.order.indexOf(playerId)
   if (index < 0) return
+
+  if (game.phase === 'reveal') {
+    awardTrick(game)
+    if (!finishIfDecided(game)) {
+      moveTurnTo(game, game.turn + 1)
+      game.phase = 'playing'
+      game.lastResult = null
+    }
+  }
 
   if (game.phase === 'finished') {
     game.order.splice(index, 1)
@@ -252,7 +286,7 @@ export function viewFor(game: GameState, playerId: string): GameView {
   return {
     phase: game.phase,
     attributes: [...game.attributes],
-    currentPlayerId: game.phase === 'playing' && current ? current : null,
+    currentPlayerId: game.phase !== 'finished' && current ? current : null,
     tiePileCount: game.tiePile.length,
     winnerId: game.winnerId,
     you: {

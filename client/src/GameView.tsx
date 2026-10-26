@@ -8,6 +8,7 @@ export function GameView({
   decks,
   notice,
   onChoose,
+  onNextTurn,
   onPlayAgain,
   onLeave,
 }: {
@@ -17,10 +18,12 @@ export function GameView({
   decks: DeckChoice[]
   notice: string
   onChoose: (attributeIndex: number) => boolean
+  onNextTurn: () => boolean
   onPlayAgain: (deckId?: string) => boolean
   onLeave: () => void
 }) {
   const yourTurn = table.phase === 'playing' && table.currentPlayerId === playerId
+  const markedTurn = table.currentPlayerId === playerId && table.phase !== 'finished'
   const turnKey = [
     table.phase,
     table.currentPlayerId ?? '',
@@ -44,12 +47,16 @@ export function GameView({
   const [rematchOpen, setRematchOpen] = useState(false)
   const [rematchDeck, setRematchDeck] = useState('')
   const [dealing, setDealing] = useState(false)
+  const [advancing, setAdvancing] = useState(false)
   const againRef = useRef<HTMLButtonElement>(null)
   if (table.phase !== 'finished' && (rematchOpen || dealing)) {
     setRematchOpen(false)
     setDealing(false)
   } else if (dealing && notice !== '') {
     setDealing(false)
+  }
+  if ((table.phase !== 'reveal' || notice !== '') && advancing) {
+    setAdvancing(false)
   }
 
   useEffect(() => {
@@ -88,6 +95,14 @@ export function GameView({
     if (onChoose(selected)) setPendingKey(turnKey)
   }
 
+  function advance() {
+    if (advancing) return
+    if (onNextTurn()) setAdvancing(true)
+  }
+
+  const result = table.lastResult
+  const yourCardPlayed = result?.plays.some((play) => play.id === playerId) ?? false
+
   return (
     <div className="play">
       <header className="play-bar">
@@ -96,12 +111,6 @@ export function GameView({
         </p>
         <div className="play-turn">
           <h1 aria-live="polite">{heading(table, room, playerId)}</h1>
-          {table.lastResult && (
-            <p className="verdict" role="status">
-              {verdict(table, room, playerId)}
-            </p>
-          )}
-          {table.lastResult && <p className="scoreline">{scoreline(table, room, playerId)}</p>}
           {table.phase === 'finished' && isHost && (
             <div className="play-actions">
               <button ref={againRef} type="button" className="play-again" disabled={!canReplay} onClick={replay}>
@@ -148,32 +157,91 @@ export function GameView({
         </div>
       </section>
 
+      <section className="felt" aria-label="Table">
+        {result && (
+          <div className="table-result">
+            <p className="table-result-title" role="status">
+              {roundTitle(table, room, playerId)}
+            </p>
+            <p className="verdict">{verdict(table, room, playerId)}</p>
+            <p className="scoreline">{scoreline(table, room, playerId)}</p>
+          </div>
+        )}
+        {result && (
+          <div className="played">
+            {result.plays.map((play) => {
+              const won = result.winnerId === play.id
+              return (
+                <article key={play.id} className={won ? 'playing-card table-card is-winner' : 'playing-card table-card'}>
+                  <p className="hand-count">
+                    {playerName(play.id, room, playerId)}
+                    {won ? ' · Winner' : ''}
+                  </p>
+                  <h3>{play.name}</h3>
+                  <StatRows attributes={table.attributes} values={play.values} highlighted={result.attributeIndex} />
+                </article>
+              )
+            })}
+          </div>
+        )}
+        {table.phase === 'reveal' && isHost && (
+          <button type="button" className="next-turn" disabled={advancing} onClick={advance}>
+            Next turn
+          </button>
+        )}
+        {table.phase === 'reveal' && !isHost && <p className="felt-wait">Waiting for the host to start the next turn.</p>}
+      </section>
+
       {!watching && (
         <section
-          className={yourTurn ? 'hand is-turn' : 'hand'}
-          aria-current={yourTurn ? 'true' : undefined}
+          className={markedTurn ? 'hand is-turn' : 'hand'}
+          aria-current={markedTurn ? 'true' : undefined}
           aria-label="Your hand"
         >
-          {table.you.topCard ? (
+          {table.phase === 'playing' && table.you.topCard ? (
             <article className="playing-card">
               <p className="hand-count">{cardsLabel(table.you.count)}</p>
               <h3>{table.you.topCard.name}</h3>
               <StatRows
                 attributes={table.attributes}
                 values={table.you.topCard.values}
-                selected={selected}
-                interactive={yourTurn}
-                disabled={locked}
-                onSelect={setSelected}
+                selected={yourTurn ? selected : null}
+                interactive
+                disabled={!yourTurn || locked}
+                onSelect={yourTurn ? setSelected : undefined}
               />
-              {yourTurn && (
+              {yourTurn ? (
                 <button type="button" className="confirm" disabled={selected === null || locked} onClick={confirm}>
                   {selected === null ? 'Confirm selection' : `Confirm ${table.attributes[selected] ?? 'stat'}`}
+                </button>
+              ) : (
+                <button type="button" className="confirm" disabled>
+                  Waiting for selection...
                 </button>
               )}
             </article>
           ) : (
-            <p className="empty-hand">You're out of cards.</p>
+            <div className="hand-frame">
+              <article className="playing-card hand-sizer" aria-hidden="true">
+                <p className="hand-count">{cardsLabel(table.attributes.length)}</p>
+                <h3>Card</h3>
+                <StatRows attributes={table.attributes} values={table.attributes.map(() => 0)} interactive disabled />
+                <button type="button" className="confirm" tabIndex={-1} disabled>
+                  Waiting for selection...
+                </button>
+              </article>
+              <div className="hand-count-face">
+                <h2>You</h2>
+                <CardStack count={table.you.count} />
+                <p className="count">
+                  {table.you.count === 0
+                    ? table.phase === 'reveal' && yourCardPlayed
+                      ? 'On the table'
+                      : 'Out'
+                    : cardsLabel(table.you.count)}
+                </p>
+              </div>
+            </div>
           )}
         </section>
       )}
@@ -341,6 +409,13 @@ function heading(table: TableState, room: RoomState, playerId: string): string {
   if (table.currentPlayerId === playerId) return 'Your turn'
   if (table.currentPlayerId) return `${playerName(table.currentPlayerId, room, playerId)}'s turn`
   return 'Top Trumps'
+}
+
+function roundTitle(table: TableState, room: RoomState, playerId: string): string {
+  const result = table.lastResult
+  if (!result || result.winnerId === null) return "It's a draw"
+  if (result.winnerId === playerId) return 'You win the round'
+  return `${playerName(result.winnerId, room, playerId)} wins the round`
 }
 
 function scoreline(table: TableState, room: RoomState, playerId: string): string {

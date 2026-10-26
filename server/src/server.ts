@@ -4,7 +4,7 @@ import http from 'node:http'
 import { join } from 'node:path'
 import { WebSocket, WebSocketServer, type RawData } from 'ws'
 import { listDecks, loadDeck, type Deck, type DeckSummary } from './deck.js'
-import { createGame, playAttribute, removePlayer, viewFor, type GameState } from './game.js'
+import { createGame, nextTurn, playAttribute, removePlayer, viewFor, type GameState } from './game.js'
 import { generateUniqueRoomCode } from './roomCode.js'
 import { createRoomStore, type PublicRoom, type RoomChange } from './rooms.js'
 import { contentTypeFor, resolveClientFile } from './static.js'
@@ -39,6 +39,7 @@ type ClientMessage =
   | { type: 'select_deck'; deckId: string }
   | { type: 'start_game'; deckId: string | null }
   | { type: 'choose_attribute'; attributeIndex: number }
+  | { type: 'next_turn' }
   | { type: 'leave_room' }
 
 export function cleanNickname(value: string): string {
@@ -71,6 +72,7 @@ function parseClientMessage(value: unknown): ClientMessage | null {
   if (value.type === 'choose_attribute' && typeof value.attributeIndex === 'number') {
     return { type: 'choose_attribute', attributeIndex: value.attributeIndex }
   }
+  if (value.type === 'next_turn') return { type: 'next_turn' }
   return null
 }
 
@@ -366,6 +368,27 @@ export function createGameServer(
         }
         const room = rooms.get(code)
         if (room) publish(room)
+        return
+      }
+
+      if (message.type === 'next_turn') {
+        const code = rooms.codeFor(playerId)
+        const game = code ? games.get(code) : undefined
+        const room = code ? rooms.get(code) : undefined
+        if (!game || !room) {
+          send(socket, { type: 'error', message: 'The game has not started.' })
+          return
+        }
+        if (room.hostId !== playerId) {
+          send(socket, { type: 'error', message: 'Only the host can start the next turn.' })
+          return
+        }
+        const result = nextTurn(game)
+        if (!result.ok) {
+          send(socket, { type: 'error', message: result.error })
+          return
+        }
+        publish(room)
         return
       }
 

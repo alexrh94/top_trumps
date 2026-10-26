@@ -42,7 +42,7 @@ export interface GameResult {
 }
 
 export interface TableState {
-  phase: 'playing' | 'finished'
+  phase: 'playing' | 'reveal' | 'finished'
   attributes: string[]
   currentPlayerId: string | null
   tiePileCount: number
@@ -144,7 +144,7 @@ function isGamePlay(value: unknown): value is GamePlay {
 
 function readTable(value: unknown): TableState | null {
   if (!isRecord(value) || value.type !== 'game') return null
-  if (value.phase !== 'playing' && value.phase !== 'finished') return null
+  if (value.phase !== 'playing' && value.phase !== 'reveal' && value.phase !== 'finished') return null
   if (!isStringArray(value.attributes)) return null
   if (typeof value.currentPlayerId !== 'string' && value.currentPlayerId !== null) return null
   if (typeof value.tiePileCount !== 'number' || !Number.isInteger(value.tiePileCount) || value.tiePileCount < 0) {
@@ -408,6 +408,12 @@ export function useGameServer() {
     [send],
   )
 
+  const nextTurn = useCallback(() => {
+    if (!send({ type: 'next_turn' })) return false
+    setNotice('')
+    return true
+  }, [send])
+
   return {
     connection,
     playerId,
@@ -421,5 +427,6 @@ export function useGameServer() {
     leaveRoom,
     startGame,
     chooseAttribute,
+    nextTurn,
   }
 }

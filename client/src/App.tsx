@@ -32,6 +32,7 @@ export function App() {
           decks={game.decks}
           notice={game.notice}
           onChoose={game.chooseAttribute}
+          onNextTurn={game.nextTurn}
           onPlayAgain={game.startGame}
           onLeave={game.leaveRoom}
         />

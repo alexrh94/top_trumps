@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Deck } from './deck.js'
-import { createGame, playAttribute, removePlayer, viewFor, type GameState } from './game.js'
+import { createGame, nextTurn, playAttribute, removePlayer, viewFor, type GameState } from './game.js'
 
 const identity = () => 0.999999999
 
@@ -69,7 +69,7 @@ test('createGame rejects too few players or too few cards', () => {
   assert.equal(createGame(['a', 'b', 'c'], deck(cards, ['A'])).ok, false)
 })
 
-test('playAttribute gives the trick to the back of the winner and passes the turn', () => {
+test('playAttribute leaves the trick on the table until the next turn', () => {
   const game = started(['a', 'b'], [
     { name: 'One', values: [1, 9] },
     { name: 'Two', values: [1, 3] },
@@ -82,16 +82,22 @@ test('playAttribute gives the trick to the back of the winner and passes the tur
   assert.deepEqual(playAttribute(game, 'a', 1.5), { ok: false, error: "Choose one of the card's attributes." })
   assert.deepEqual(playAttribute(game, 'a', -1), { ok: false, error: "Choose one of the card's attributes." })
   assert.deepEqual(playAttribute(game, 'a', 2), { ok: false, error: "Choose one of the card's attributes." })
+  assert.deepEqual(nextTurn(game), { ok: false, error: 'There is no turn to continue.' })
 
   assert.deepEqual(playAttribute(game, 'a', 1), { ok: true })
-  assert.deepEqual(names(game, 'a'), ['Three', 'One', 'Two'])
+  assert.equal(game.phase, 'reveal')
+  assert.deepEqual(names(game, 'a'), ['Three'])
   assert.deepEqual(names(game, 'b'), ['Four'])
   assert.equal(game.tiePile.length, 0)
-  assert.equal(game.order[game.turn], 'b')
+  assert.equal(game.order[game.turn], 'a')
+  assert.deepEqual(playAttribute(game, 'b', 1), { ok: false, error: 'The cards are still on the table.' })
+  assert.deepEqual(names(game, 'b'), ['Four'])
 
   const view = viewFor(game, 'b')
-  assert.equal(view.currentPlayerId, 'b')
+  assert.equal(view.phase, 'reveal')
+  assert.equal(view.currentPlayerId, 'a')
   assert.equal(view.you.topCard?.name, 'Four')
+  assert.equal(view.you.count, 1)
   assert.deepEqual(view.lastResult, {
     attributeIndex: 1,
     winnerId: 'a',
@@ -102,6 +108,21 @@ test('playAttribute gives the trick to the back of the winner and passes the tur
     ],
   })
   assert.equal(JSON.stringify(view).includes('Three'), false)
+
+  assert.deepEqual(nextTurn(game), { ok: true })
+  assert.equal(game.phase, 'playing')
+  assert.deepEqual(names(game, 'a'), ['Three', 'One', 'Two'])
+  assert.deepEqual(names(game, 'b'), ['Four'])
+  assert.equal(game.tiePile.length, 0)
+  assert.equal(game.order[game.turn], 'b')
+  assert.equal(game.lastResult, null)
+
+  const next = viewFor(game, 'b')
+  assert.equal(next.currentPlayerId, 'b')
+  assert.equal(next.you.topCard?.name, 'Four')
+  assert.equal(next.lastResult, null)
+  assert.equal(JSON.stringify(next).includes('Three'), false)
+  assert.equal(JSON.stringify(next).includes('One'), false)
 })
 
 test('a draw parks every card in the middle and the next winner collects them', () => {
@@ -113,17 +134,27 @@ test('a draw parks every card in the middle and the next winner collects them', 
   ])
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
   assert.deepEqual(names(game, 'a'), ['Three'])
   assert.deepEqual(names(game, 'b'), ['Four'])
+  assert.equal(game.tiePile.length, 0)
+  assert.equal(game.lastResult?.winnerId, null)
+  assert.equal(viewFor(game, 'a').tiePileCount, 0)
+
+  assert.equal(nextTurn(game).ok, true)
   assert.deepEqual(
     game.tiePile.map((card) => card.name),
     ['One', 'Two'],
   )
-  assert.equal(game.lastResult?.winnerId, null)
   assert.equal(game.order[game.turn], 'b')
+  assert.equal(game.phase, 'playing')
   assert.equal(viewFor(game, 'a').tiePileCount, 2)
 
   assert.equal(playAttribute(game, 'b', 1).ok, true)
+  assert.equal(game.phase, 'reveal')
+  assert.equal(game.lastResult?.awardedPile, 2)
+  assert.equal(viewFor(game, 'b').tiePileCount, 2)
+  assert.equal(nextTurn(game).ok, true)
   assert.deepEqual(names(game, 'b'), ['Three', 'Four', 'One', 'Two'])
   assert.deepEqual(names(game, 'a'), [])
   assert.equal(game.tiePile.length, 0)
@@ -156,7 +187,10 @@ test('a shared high value is a draw even when another card is lower', () => {
   )
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
   assert.equal(game.lastResult?.winnerId, null)
+  assert.equal(game.tiePile.length, 0)
+  assert.equal(nextTurn(game).ok, true)
   assert.deepEqual(
     game.tiePile.map((card) => card.name),
     ['A1', 'B1', 'C1'],
@@ -177,6 +211,9 @@ test('the highest value wins when the numbers are negative', () => {
   )
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
+  assert.equal(game.winnerId, null)
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.winnerId, 'a')
   assert.equal(game.phase, 'finished')
   assert.deepEqual(names(game, 'a'), ['Low', 'Lower'])
@@ -197,10 +234,15 @@ test('a draw that knocks out every opponent awards the pile and the game', () =>
   )
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.winnerId, null)
   assert.equal(playAttribute(game, 'b', 0).ok, true)
   assert.equal(game.lastResult?.winnerId, null)
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
+  assert.equal(game.lastResult?.winnerId, null)
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.phase, 'finished')
   assert.equal(game.winnerId, 'a')
   assert.equal(game.lastResult?.winnerId, null)
@@ -220,6 +262,10 @@ test('the last cards tying ends the game as a draw', () => {
   )
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
+  assert.equal(viewFor(game, 'a').you.count, 0)
+  assert.equal(viewFor(game, 'a').tiePileCount, 0)
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.phase, 'finished')
   assert.equal(game.winnerId, null)
   assert.deepEqual(
@@ -245,8 +291,12 @@ test('players with no cards are skipped and do not play a card', () => {
   )
 
   assert.equal(playAttribute(game, 'a', 0).ok, true)
+  assert.equal(game.phase, 'reveal')
+  assert.equal(game.order[game.turn], 'a')
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.order[game.turn], 'b')
   assert.equal(playAttribute(game, 'b', 0).ok, true)
+  assert.equal(nextTurn(game).ok, true)
   assert.deepEqual(names(game, 'a'), ['A2', 'B2', 'C2'])
   assert.deepEqual(names(game, 'b'), ['A1', 'B1', 'C1'])
   assert.deepEqual(names(game, 'c'), [])
@@ -258,6 +308,9 @@ test('players with no cards are skipped and do not play a card', () => {
     ['A2', 'A1'],
   )
   assert.equal(game.lastResult?.winnerId, 'a')
+  assert.equal(game.phase, 'reveal')
+  assert.equal(game.order[game.turn], 'a')
+  assert.equal(nextTurn(game).ok, true)
   assert.equal(game.order[game.turn], 'b')
   assert.equal(viewFor(game, 'c').players.find((player) => player.id === 'c')?.count, 0)
 })
@@ -307,4 +360,55 @@ test('removePlayer hands the turn to the next seated player who still has cards'
   )
   assert.deepEqual(names(game, 'b'), ['B1', 'B2'])
   assert.deepEqual(names(game, 'c'), ['C1', 'C2'])
+})
+
+test('leaving during a reveal collects the trick before passing the turn', () => {
+  const game = started(
+    ['a', 'b', 'c'],
+    [
+      { name: 'A1', values: [1] },
+      { name: 'B1', values: [9] },
+      { name: 'C1', values: [3] },
+      { name: 'A2', values: [4] },
+      { name: 'B2', values: [5] },
+      { name: 'C2', values: [6] },
+    ],
+    ['A'],
+  )
+
+  assert.equal(playAttribute(game, 'a', 0).ok, true)
+  removePlayer(game, 'c')
+  assert.equal(game.phase, 'playing')
+  assert.equal(game.lastResult, null)
+  assert.equal(game.order[game.turn], 'b')
+  assert.deepEqual(names(game, 'a'), ['A2'])
+  assert.deepEqual(names(game, 'b'), ['B2', 'A1', 'B1', 'C1'])
+  assert.deepEqual(
+    game.tiePile.map((card) => card.name),
+    ['C2'],
+  )
+
+  const chooserLeaves = started(
+    ['a', 'b', 'c'],
+    [
+      { name: 'A1', values: [1] },
+      { name: 'B1', values: [9] },
+      { name: 'C1', values: [3] },
+      { name: 'A2', values: [4] },
+      { name: 'B2', values: [5] },
+      { name: 'C2', values: [6] },
+    ],
+    ['A'],
+  )
+  assert.equal(playAttribute(chooserLeaves, 'a', 0).ok, true)
+  removePlayer(chooserLeaves, 'a')
+  assert.equal(chooserLeaves.phase, 'playing')
+  assert.equal(chooserLeaves.lastResult, null)
+  assert.equal(chooserLeaves.order[chooserLeaves.turn], 'b')
+  assert.deepEqual(names(chooserLeaves, 'b'), ['B2', 'A1', 'B1', 'C1'])
+  assert.deepEqual(names(chooserLeaves, 'c'), ['C2'])
+  assert.deepEqual(
+    chooserLeaves.tiePile.map((card) => card.name),
+    ['A2'],
+  )
 })
