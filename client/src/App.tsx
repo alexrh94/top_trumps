@@ -88,11 +88,7 @@ function LobbyView({
 
   return (
     <>
-      <p className="eyebrow">Online card game</p>
       <h1>Top Trumps</h1>
-      <p className="lede">
-        Each player gets an equal share of the deck. Call a stat on your top card, and the highest value wins the pile.
-      </p>
       <form className="join" onSubmit={handleSubmit}>
         <label htmlFor="nickname">Nickname</label>
         <input

@@ -1,8 +1,10 @@
 :root {
   color: #1c1915;
   background: #143028;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Outfit Variable", "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -15,7 +17,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -53,7 +56,6 @@ input {
 .eyebrow {
   margin: 0;
   color: #e2b15a;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -64,15 +66,15 @@ h1 {
   margin: 0.35rem 0 0.75rem;
   color: #f4efe4;
   font-size: clamp(3rem, 8vw, 4.5rem);
-  font-weight: 700;
-  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
 }
 
 .lede,
 .status {
   margin: 0;
   color: #d5e2d8;
-  font-family: "Segoe UI", sans-serif;
 }
 
 .lede {
@@ -90,7 +92,6 @@ h1 {
 .join label {
   display: block;
   margin-bottom: 0.5rem;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -116,11 +117,6 @@ h1 {
   display: block;
   width: 100%;
   margin-bottom: 1rem;
-}
-
-.join button,
-.join select {
-  font-family: "Segoe UI", sans-serif;
 }
 
 .join select {
@@ -173,6 +169,7 @@ h1 {
 }
 
 h1.room-code {
+  font-weight: 500;
   letter-spacing: 0.16em;
 }
 
@@ -182,7 +179,6 @@ h1.room-code {
 
 .join h2 {
   margin: 1rem 0 0.4rem;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -191,7 +187,6 @@ h1.room-code {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-family: "Segoe UI", sans-serif;
 }
 
 .players li + li {
@@ -244,7 +239,6 @@ h1.room-code {
   border-radius: 0.55rem;
   background: rgb(255 255 255 / 6%);
   color: #f4efe4;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -260,9 +254,10 @@ h1.room-code {
 .play-turn h1 {
   margin: 0;
   color: #f4efe4;
-  font-size: clamp(1.45rem, 2.6vw, 2rem);
-  font-weight: 700;
-  line-height: 1.1;
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
 .verdict,
@@ -270,7 +265,6 @@ h1.room-code {
 .watch,
 .play-notice {
   margin: 0.28rem 0 0;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.9rem;
   line-height: 1.35;
 }
@@ -302,7 +296,6 @@ h1.room-code {
 .change-deck {
   padding: 0.45rem 0.9rem;
   border-radius: 0.6rem;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
@@ -359,13 +352,14 @@ h1.room-code {
 .rematch h2 {
   margin: 0 0 0.9rem;
   font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   line-height: 1.1;
 }
 
 .rematch label {
   display: block;
   margin-bottom: 0.45rem;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -377,12 +371,10 @@ h1.room-code {
   border-radius: 0.6rem;
   background: #fff;
   color: #1c1915;
-  font-family: "Segoe UI", sans-serif;
 }
 
 .rematch button {
   width: 100%;
-  font-family: "Segoe UI", sans-serif;
 }
 
 .rematch button.secondary {
@@ -413,7 +405,6 @@ h1.room-code {
 .confirm {
   border: 0;
   border-radius: 0.6rem;
-  font-family: "Segoe UI", sans-serif;
   font-weight: 700;
   cursor: pointer;
 }
@@ -489,7 +480,6 @@ h1.room-code {
   width: 100%;
   margin: 0;
   overflow: hidden;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.2;
@@ -501,7 +491,6 @@ h1.room-code {
 .empty-hand,
 .hand-count {
   margin: 0.35rem 0 0;
-  font-family: "Segoe UI", sans-serif;
 }
 
 .count,
@@ -588,7 +577,6 @@ h1.room-code {
   margin: 0;
   overflow: hidden;
   color: #1c1915;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.2;
@@ -650,7 +638,9 @@ h1.room-code {
 .table-result-title {
   margin: 0;
   color: #f4efe4;
-  font-size: 1.35rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   line-height: 1.15;
 }
 
@@ -718,7 +708,6 @@ h1.room-code {
 .felt-wait {
   margin: 0;
   color: #d5e2d8;
-  font-family: "Segoe UI", sans-serif;
   font-size: 0.95rem;
   text-align: center;
 }
@@ -730,7 +719,6 @@ h1.room-code {
   border-radius: 0.6rem;
   background: #e2b15a;
   color: #1c1915;
-  font-family: "Segoe UI", sans-serif;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
@@ -758,6 +746,8 @@ h1.room-code {
 .playing-card h3 {
   margin: 0.15rem 0 0.65rem;
   font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
@@ -776,7 +766,6 @@ h1.room-code {
   margin-top: 0.2rem;
   padding: 0.38rem 0.5rem;
   border-radius: 0.45rem;
-  font-family: "Segoe UI", sans-serif;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

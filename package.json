@@ -16,6 +16,7 @@
     "test": "tsx --test server/src/roomCode.test.ts server/src/deck.test.ts server/src/rooms.test.ts server/src/game.test.ts server/src/static.test.ts server/src/server.test.ts"
   },
   "dependencies": {
+    "@fontsource-variable/outfit": "^5.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "ws": "^8.18.3"
