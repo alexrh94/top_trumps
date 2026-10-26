@@ -451,6 +451,141 @@ test('a draw leaves a middle pile and the next winner collects it', async () => 
   }
 })
 
+test('the host can deal another game in the same room after it finishes', async () => {
+  const clientDir = mkdtempSync(join(tmpdir(), 'top-trumps-serve-'))
+  const decksDir = mkdtempSync(join(tmpdir(), 'top-trumps-decks-'))
+  writeFileSync(join(clientDir, 'index.html'), '<h1>Top Trumps</h1>')
+  writeFileSync(
+    join(decksDir, 'duel.json'),
+    JSON.stringify({
+      name: 'Duel',
+      attributes: ['Power', 'Speed'],
+      cards: [
+        { name: 'Red', values: [2, 1] },
+        { name: 'Blue', values: [2, 5] },
+        { name: 'Green', values: [4, 3] },
+        { name: 'Gold', values: [0, 9] },
+      ],
+    }),
+  )
+  writeFileSync(
+    join(decksDir, 'beasts.json'),
+    JSON.stringify({
+      name: 'Beasts',
+      attributes: ['Age'],
+      cards: [
+        { name: 'Cat', values: [1] },
+        { name: 'Dog', values: [3] },
+        { name: 'Fox', values: [2] },
+        { name: 'Owl', values: [4] },
+      ],
+    }),
+  )
+
+  const gameServer = createGameServer(clientDir, decksDir, undefined, () => 0.999999999)
+  const port = await listen(gameServer, 0)
+  const url = `ws://127.0.0.1:${port}/ws`
+  const hostSocket = new WebSocket(url)
+  const guestSocket = new WebSocket(url)
+  const host = track(hostSocket)
+  const guest = track(guestSocket)
+
+  try {
+    const hostConnected = requireRecord(await host.next())
+    await guest.next()
+    await host.next()
+    await guest.next()
+    const hostId = stringField(hostConnected, 'playerId')
+
+    host.send({ type: 'create_room', nickname: 'Alex' })
+    const created = requireRecord(await host.next())
+    const code = stringField(created, 'code')
+    guest.send({ type: 'join_room', code, nickname: 'Sam' })
+    await host.next()
+    await guest.next()
+    host.send({ type: 'select_deck', deckId: 'duel' })
+    await host.next()
+    await guest.next()
+    host.send({ type: 'start_game' })
+    await nextGame(host)
+    await nextGame(guest)
+    host.send({ type: 'choose_attribute', attributeIndex: 0 })
+    await nextGame(host)
+    await nextGame(guest)
+    guest.send({ type: 'choose_attribute', attributeIndex: 1 })
+    const finished = await nextGame(host)
+    await nextGame(guest)
+    assert.equal(finished.phase, 'finished')
+
+    guest.send({ type: 'start_game', deckId: 'beasts' })
+    assert.deepEqual(await guest.next(), { type: 'error', message: 'Only the host can start the game.' })
+    host.send({ type: 'select_deck', deckId: 'beasts' })
+    assert.deepEqual(await host.next(), { type: 'error', message: 'The game has already started.' })
+    host.send({ type: 'start_game', deckId: 'missing' })
+    assert.deepEqual(await host.next(), { type: 'error', message: 'That deck is not available.' })
+    assert.equal(host.queued, 0)
+    assert.equal(guest.queued, 0)
+
+    host.send({ type: 'start_game' })
+    const sameRoom = requireRecord(await host.next())
+    const sameGame = requireRecord(await host.next())
+    const guestRoom = requireRecord(await guest.next())
+    const guestGame = requireRecord(await guest.next())
+    assert.equal(sameRoom.type, 'room')
+    assert.equal(sameRoom.code, code)
+    assert.equal(sameRoom.deckId, 'duel')
+    assert.equal(guestRoom.deckId, 'duel')
+    assert.equal(sameGame.type, 'game')
+    assert.equal(sameGame.phase, 'playing')
+    assert.equal(sameGame.currentPlayerId, hostId)
+    assert.equal(sameGame.winnerId, null)
+    assert.equal(sameGame.lastResult, null)
+    assert.equal(sameGame.tiePileCount, 0)
+    assert.equal(youCount(sameGame), 2)
+    assert.equal(topName(sameGame), 'Red')
+    assert.equal(youCount(guestGame), 2)
+    assert.equal(topName(guestGame), 'Blue')
+
+    host.send({ type: 'start_game', deckId: 'beasts' })
+    assert.deepEqual(await host.next(), { type: 'error', message: 'The game has already started.' })
+
+    host.send({ type: 'choose_attribute', attributeIndex: 0 })
+    await nextGame(host)
+    await nextGame(guest)
+    guest.send({ type: 'choose_attribute', attributeIndex: 1 })
+    const finishedAgain = await nextGame(host)
+    await nextGame(guest)
+    assert.equal(finishedAgain.phase, 'finished')
+
+    host.send({ type: 'start_game', deckId: 'beasts' })
+    const beastsRoom = requireRecord(await host.next())
+    const beastsGame = requireRecord(await host.next())
+    await guest.next()
+    const guestBeasts = requireRecord(await guest.next())
+    assert.equal(beastsRoom.deckId, 'beasts')
+    assert.equal(beastsRoom.code, code)
+    assert.equal(beastsGame.phase, 'playing')
+    assert.equal(Array.isArray(beastsGame.attributes) && beastsGame.attributes[0], 'Age')
+    assert.equal(topName(beastsGame), 'Cat')
+    assert.equal(youCount(beastsGame), 2)
+    assert.equal(topName(guestBeasts), 'Dog')
+    assert.equal(JSON.stringify(beastsGame).includes('Owl'), false)
+
+    guest.send({ type: 'leave_room' })
+    const leftRoom = requireRecord(await host.next())
+    const leftGame = requireRecord(await host.next())
+    assert.deepEqual(leftRoom.playerIds, [hostId])
+    assert.equal(leftGame.phase, 'finished')
+    host.send({ type: 'start_game', deckId: 'beasts' })
+    assert.deepEqual(await host.next(), { type: 'error', message: 'At least two players are needed to start.' })
+    assert.equal(host.queued, 0)
+  } finally {
+    hostSocket.close()
+    guestSocket.close()
+    await closeGameServer(gameServer)
+  }
+})
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

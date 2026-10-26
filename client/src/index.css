@@ -290,6 +290,120 @@ h1.room-code {
   margin-top: 0.28rem;
 }
 
+.play-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.play-again,
+.change-deck {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.6rem;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.play-again {
+  border: 0;
+  background: #e2b15a;
+  color: #1c1915;
+}
+
+.play-again:hover:not(:disabled) {
+  background: #efc56f;
+}
+
+.change-deck {
+  border: 2px solid #f4efe4;
+  background: transparent;
+  color: #f4efe4;
+}
+
+.change-deck:hover:not(:disabled) {
+  background: rgb(244 239 228 / 12%);
+}
+
+.play-again:disabled,
+.change-deck:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rematch-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(8 20 16 / 72%);
+}
+
+.rematch {
+  width: min(22rem, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 1.15rem 1.2rem 1.2rem;
+  border-radius: 1rem;
+  background: #f4efe4;
+  color: #1c1915;
+  box-shadow: 0 12px 0 rgb(0 0 0 / 18%);
+}
+
+.rematch h2 {
+  margin: 0 0 0.9rem;
+  font-size: 1.6rem;
+  line-height: 1.1;
+}
+
+.rematch label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.rematch select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 2px solid #1c1915;
+  border-radius: 0.6rem;
+  background: #fff;
+  color: #1c1915;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.rematch button {
+  width: 100%;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.rematch button.secondary {
+  margin-top: 0.55rem;
+  padding: 0.7rem 1rem;
+  border: 2px solid #143028;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #143028;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rematch button.secondary:hover {
+  background: #e7e0d2;
+}
+
+.rematch .status {
+  color: #3d4a40;
+}
+
 .table-leave {
   justify-self: end;
   white-space: nowrap;
@@ -317,6 +431,10 @@ h1.room-code {
 
 .table-leave:focus-visible,
 .confirm:focus-visible,
+.play-again:focus-visible,
+.change-deck:focus-visible,
+.rematch select:focus-visible,
+.rematch button:focus-visible,
 .playing-card button.attr:focus-visible {
   outline: 3px solid #e2b15a;
   outline-offset: 2px;
@@ -698,5 +816,14 @@ h1.room-code {
   .confirm {
     margin-top: 0.28rem;
     padding: 0.32rem 0.65rem;
+  }
+
+  .play-actions {
+    margin-top: 0.25rem;
+  }
+
+  .play-again,
+  .change-deck {
+    padding: 0.28rem 0.7rem;
   }
 }

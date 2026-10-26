@@ -389,9 +389,15 @@ export function useGameServer() {
     setNotice('Ask the host for a four-letter code, or create a room.')
   }, [rememberRoom, send])
 
-  const startGame = useCallback(() => {
-    send({ type: 'start_game' })
-  }, [send])
+  const startGame = useCallback(
+    (deckId?: string) => {
+      const message = typeof deckId === 'string' ? { type: 'start_game', deckId } : { type: 'start_game' }
+      if (!send(message)) return false
+      setNotice('')
+      return true
+    },
+    [send],
+  )
 
   const chooseAttribute = useCallback(
     (attributeIndex: number) => {

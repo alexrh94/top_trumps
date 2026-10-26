@@ -1,19 +1,23 @@
-import { useState } from 'react'
-import type { RoomState, TableState } from './useGameServer'
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { DeckChoice, RoomState, TableState } from './useGameServer'
 
 export function GameView({
   room,
   playerId,
   table,
+  decks,
   notice,
   onChoose,
+  onPlayAgain,
   onLeave,
 }: {
   room: RoomState
   playerId: string
   table: TableState
+  decks: DeckChoice[]
   notice: string
   onChoose: (attributeIndex: number) => boolean
+  onPlayAgain: (deckId?: string) => boolean
   onLeave: () => void
 }) {
   const yourTurn = table.phase === 'playing' && table.currentPlayerId === playerId
@@ -36,6 +40,48 @@ export function GameView({
   const locked = pendingKey === turnKey && notice === ''
   const watching = !table.players.some((player) => player.id === playerId)
   const opponents = table.players.filter((player) => player.id !== playerId)
+  const isHost = room.hostId === playerId
+  const [rematchOpen, setRematchOpen] = useState(false)
+  const [rematchDeck, setRematchDeck] = useState('')
+  const [dealing, setDealing] = useState(false)
+  const againRef = useRef<HTMLButtonElement>(null)
+  if (table.phase !== 'finished' && (rematchOpen || dealing)) {
+    setRematchOpen(false)
+    setDealing(false)
+  } else if (dealing && notice !== '') {
+    setDealing(false)
+  }
+
+  useEffect(() => {
+    if (!rematchOpen) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setRematchOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      againRef.current?.focus()
+    }
+  }, [rematchOpen])
+
+  function openRematch() {
+    const current = room.deckId && decks.some((deck) => deck.id === room.deckId) ? room.deckId : ''
+    setRematchDeck(current)
+    setDealing(false)
+    setRematchOpen(true)
+  }
+
+  const canReplay = Boolean(room.deckId) && room.players.length >= 2 && !dealing
+
+  function replay() {
+    if (!canReplay) return
+    if (onPlayAgain()) setDealing(true)
+  }
+
+  function dealAgain() {
+    if (dealing || rematchDeck === '') return
+    if (onPlayAgain(rematchDeck)) setDealing(true)
+  }
 
   function confirm() {
     if (selected === null || locked) return
@@ -56,6 +102,19 @@ export function GameView({
             </p>
           )}
           {table.lastResult && <p className="scoreline">{scoreline(table, room, playerId)}</p>}
+          {table.phase === 'finished' && isHost && (
+            <div className="play-actions">
+              <button ref={againRef} type="button" className="play-again" disabled={!canReplay} onClick={replay}>
+                Play again
+              </button>
+              <button type="button" className="change-deck" disabled={dealing} aria-haspopup="dialog" onClick={openRematch}>
+                Change deck
+              </button>
+            </div>
+          )}
+          {table.phase === 'finished' && isHost && room.players.length < 2 && (
+            <p className="watch">Waiting for at least one more player.</p>
+          )}
           {watching && <p className="watch">You joined after the deal, so you're watching this game.</p>}
           {notice && (
             <p className="status play-notice" role="status">
@@ -118,8 +177,86 @@ export function GameView({
           )}
         </section>
       )}
+
+      {rematchOpen && (
+        <div
+          className="rematch-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setRematchOpen(false)
+          }}
+        >
+          <div
+            className="rematch"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rematch-title"
+            onKeyDown={trapDialogKeys}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <h2 id="rematch-title">Play again</h2>
+            <label htmlFor="rematch-deck">Deck</label>
+            {decks.length === 0 ? (
+              <p className="status">No decks are available.</p>
+            ) : (
+              <select
+                id="rematch-deck"
+                name="deck"
+                value={rematchDeck}
+                autoFocus
+                onChange={(event) => setRematchDeck(event.target.value)}
+              >
+                {rematchDeck === '' && (
+                  <option value="" disabled>
+                    Select a deck
+                  </option>
+                )}
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deck.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button type="button" className="confirm" disabled={!canDealAgain(rematchDeck, room, dealing)} onClick={dealAgain}>
+              Play again
+            </button>
+            <button type="button" className="secondary" onClick={onLeave}>
+              Leave room
+            </button>
+            {(notice || room.players.length < 2) && (
+              <p className="status" role="status">
+                {notice || 'Waiting for at least one more player.'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+function canDealAgain(deckId: string, room: RoomState, dealing: boolean): boolean {
+  return deckId !== '' && room.players.length >= 2 && !dealing
+}
+
+function trapDialogKeys(event: ReactKeyboardEvent<HTMLDivElement>) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const dialog = event.currentTarget
+  const items = [...dialog.querySelectorAll<HTMLElement>('select, button')].filter((item) => !item.hasAttribute('disabled'))
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (!first || !last) return
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
 function StatRows({

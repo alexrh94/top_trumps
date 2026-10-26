@@ -29,8 +29,10 @@ export function App() {
           room={game.room}
           playerId={game.playerId}
           table={game.table}
+          decks={game.decks}
           notice={game.notice}
           onChoose={game.chooseAttribute}
+          onPlayAgain={game.startGame}
           onLeave={game.leaveRoom}
         />
       ) : game.room && game.playerId ? (
@@ -208,7 +210,7 @@ function RoomView({
             <li key={player.id}>{playerLabel(player, index, playerId, room.hostId)}</li>
           ))}
         </ul>
-        <button type="button" className="start" onClick={onStart} disabled={!canStart}>
+        <button type="button" className="start" onClick={() => onStart()} disabled={!canStart}>
           Start game
         </button>
         <button type="button" className="secondary" onClick={onLeave}>

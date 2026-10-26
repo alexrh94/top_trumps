@@ -37,7 +37,7 @@ type ClientMessage =
   | { type: 'create_room'; nickname: string }
   | { type: 'join_room'; code: string; nickname: string }
   | { type: 'select_deck'; deckId: string }
-  | { type: 'start_game' }
+  | { type: 'start_game'; deckId: string | null }
   | { type: 'choose_attribute'; attributeIndex: number }
   | { type: 'leave_room' }
 
@@ -65,7 +65,9 @@ function parseClientMessage(value: unknown): ClientMessage | null {
   if (value.type === 'select_deck' && typeof value.deckId === 'string') {
     return { type: 'select_deck', deckId: value.deckId }
   }
-  if (value.type === 'start_game') return { type: 'start_game' }
+  if (value.type === 'start_game') {
+    return { type: 'start_game', deckId: typeof value.deckId === 'string' ? value.deckId : null }
+  }
   if (value.type === 'choose_attribute' && typeof value.attributeIndex === 'number') {
     return { type: 'choose_attribute', attributeIndex: value.attributeIndex }
   }
@@ -293,37 +295,58 @@ export function createGameServer(
 
       if (message.type === 'start_game') {
         const code = rooms.codeFor(playerId)
-        const room = code ? rooms.get(code) : undefined
-        if (!room || !code) {
+        const current = code ? rooms.get(code) : undefined
+        if (!current || !code) {
           send(socket, { type: 'error', message: 'Join a room before starting a game.' })
           return
         }
-        if (room.hostId !== playerId) {
+        if (current.hostId !== playerId) {
           send(socket, { type: 'error', message: 'Only the host can start the game.' })
           return
         }
-        if (games.has(code)) {
+        const existing = games.get(code)
+        if (existing && existing.phase !== 'finished') {
           send(socket, { type: 'error', message: 'The game has already started.' })
           return
         }
-        if (room.playerIds.length < 2) {
+        if (current.playerIds.length < 2) {
           send(socket, { type: 'error', message: 'At least two players are needed to start.' })
           return
         }
-        if (!room.deckId) {
+
+        const deckId = message.deckId ?? current.deckId
+        if (!deckId) {
           send(socket, { type: 'error', message: 'Choose a deck before starting.' })
           return
         }
-        const loaded = readDeck(room.deckId)
+        const loaded = readDeck(deckId)
         if (!loaded.ok) {
           send(socket, { type: 'error', message: loaded.error })
           return
         }
-        const created = createGame(room.playerIds, loaded.deck, random)
+        const created = createGame(current.playerIds, loaded.deck, random)
         if (!created.ok) {
           send(socket, { type: 'error', message: created.error })
           return
         }
+
+        let room = current
+        if (deckId !== current.deckId) {
+          let knownDeckIds: Set<string>
+          try {
+            knownDeckIds = new Set(listDecks(decksDir).map((deck) => deck.id))
+          } catch {
+            send(socket, { type: 'error', message: 'The deck list could not be read.' })
+            return
+          }
+          const selected = rooms.selectDeck(playerId, deckId, knownDeckIds)
+          if (!selected.ok) {
+            send(socket, { type: 'error', message: selected.error })
+            return
+          }
+          room = selected.room
+        }
+
         games.set(code, created.game)
         publish(room)
         return
